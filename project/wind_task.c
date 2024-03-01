@@ -38,9 +38,9 @@ static void wind_task(void *parameter)
 
 void init_wind()
 {
-    windQueue = xQueueCreate(
-        5,
-        sizeof(int));
+    windQueue = xQueueCreate(10, sizeof(int));
 
-    xTaskCreate(wind_task, "Wind", 500, NULL, WIND_PRIORITY, NULL);
+    assert(windQueue);
+
+    xTaskCreate(wind_task, "Wind", 1000, NULL, WIND_PRIORITY, NULL);
 }

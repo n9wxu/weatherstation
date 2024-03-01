@@ -40,12 +40,16 @@ static int8_t pio_irq;
 
 SemaphoreHandle_t i2c_semaphore;
 
+const int I2C_BAUDRATE = 100 * 1000; // 100khz baudrate
+
 int main()
 {
 	stdio_init_all();
 	rtc_init();
 
-	i2c_init(i2c0, 100 * 1000);
+	printf("Starting Up\n");
+
+	i2c_init(i2c0, I2C_BAUDRATE);
 	gpio_set_function(i2c_sck_pin, GPIO_FUNC_I2C);
 	gpio_set_function(i2c_sda_pin, GPIO_FUNC_I2C);
 	gpio_pull_up(i2c_sck_pin);
@@ -55,6 +59,13 @@ int main()
 	gpio_init(rain_bucket_pin);
 	gpio_pull_up(wind_speed_pin);
 	gpio_pull_up(rain_bucket_pin);
+
+	init_reporting();
+	init_rain();
+	init_wind();
+	init_gps();
+	init_temperature();
+	init_pressure();
 
 	pio = pio0;
 	wind_sm = pio_claim_unused_sm(pio, false);
@@ -81,13 +92,6 @@ int main()
 	pio_set_irqn_source_enabled(pio, 1, pis_sm0_rx_fifo_not_empty + rain_sm, true);
 
 	i2c_semaphore = xSemaphoreCreateMutex();
-
-	init_reporting();
-	init_rain();
-	init_wind();
-	init_gps();
-	init_temperature();
-	init_pressure();
 
 	vTaskStartScheduler();
 }

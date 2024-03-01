@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.25)
 
+# set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+
+# import the pico-sdk
+set(ENV{PICO_SDK_FETCH_FROM_GIT} 1)
+include(pico_sdk_import.cmake)
+
 include(FetchContent)
 
 FetchContent_Declare(libgps
@@ -8,10 +14,6 @@ FetchContent_Declare(libgps
 
 FetchContent_MakeAvailable(libgps)
 add_subdirectory(${libgps_SOURCE_DIR}/src)
-
-# import the pico-sdk
-set(ENV{PICO_SDK_FETCH_FROM_GIT} 1)
-include(pico_sdk_import.cmake)
 
 # TODO fix this hard path to the FreeRTOS kernel
 # Ideally make this a fetchcontent
@@ -40,14 +42,15 @@ pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/switch_inputs
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 
 target_link_libraries(${PROJECT_NAME}
-    libgps
-    FreeRTOS-Kernel FreeRTOS-Kernel-Heap4
     pico_stdlib
+    FreeRTOS-Kernel
+    FreeRTOS-Kernel-Heap4
     hardware_pio
     hardware_rtc
     hardware_uart
     hardware_gpio
     hardware_i2c
+    libgps
 )
 
 pico_add_extra_outputs(${PROJECT_NAME} 1)
