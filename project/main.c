@@ -24,7 +24,7 @@
 
 const int wind_speed_pin = 27;
 const int rain_bucket_pin = 9;
-const int i2c_sda_pin = 22;
+const int i2c_sda_pin = 20;
 const int i2c_sck_pin = 21;
 
 const int wind_led = 8;
@@ -40,16 +40,14 @@ static int8_t pio_irq;
 
 SemaphoreHandle_t i2c_semaphore;
 
+#define IC2_SELECTION i2c0
 const int I2C_BAUDRATE = 100 * 1000; // 100khz baudrate
 
 int main()
 {
 	stdio_init_all();
-	rtc_init();
 
-	printf("Starting Up\n");
-
-	i2c_init(i2c0, I2C_BAUDRATE);
+	i2c_init(IC2_SELECTION, I2C_BAUDRATE);
 	gpio_set_function(i2c_sck_pin, GPIO_FUNC_I2C);
 	gpio_set_function(i2c_sda_pin, GPIO_FUNC_I2C);
 	gpio_pull_up(i2c_sck_pin);
@@ -60,6 +58,9 @@ int main()
 	gpio_pull_up(wind_speed_pin);
 	gpio_pull_up(rain_bucket_pin);
 
+	i2c_semaphore = xSemaphoreCreateMutex();
+
+	rtc_init();
 	init_reporting();
 	init_rain();
 	init_wind();
@@ -90,8 +91,6 @@ int main()
 	irq_add_shared_handler(pio_irq, rain_irq_func, PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY); // Add a shared IRQ handler
 	irq_set_enabled(pio_irq, true);
 	pio_set_irqn_source_enabled(pio, 1, pis_sm0_rx_fifo_not_empty + rain_sm, true);
-
-	i2c_semaphore = xSemaphoreCreateMutex();
 
 	vTaskStartScheduler();
 }
