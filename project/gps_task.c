@@ -7,6 +7,7 @@
 #include "hardware/gpio.h"
 #include "hardware/irq.h"
 #include "hardware/rtc.h"
+#include "pico/util/datetime.h"
 
 #include <stdio.h>
 #include <memory.h>
@@ -30,16 +31,16 @@ typedef char nmea_buffer_t[85];
 struct gps_date_t
 {
     bool goodTime;
-    int year = 0;
-    int month = 0;
-    int day = 0;
-    int hour = 0;
-    int minute = 0;
-    int second = 0;
+    int year;
+    int month;
+    int day;
+    int hour;
+    int minute;
+    int second;
 };
 
 SemaphoreHandle_t dateSemaphore;
-gps_date_t gpsDate = {false};
+struct gps_date_t gpsDate = {false};
 
 void on_uart_rx()
 {
@@ -109,9 +110,9 @@ static void gps_task(void *parameter)
                     if (strlen(tpv.time) > 0)
                     {
                         float s;
-                        gps_date_t aDate;
+                        struct gps_date_t aDate;
                         sscanf(tpv.time, "%d-%d-%dT%d:%d:%fZ", &aDate.year,
-                               &aDate.month, &aDate.day, &aDate.hour, &Date.minute, &s);
+                               &aDate.month, &aDate.day, &aDate.hour, &aDate.minute, &s);
                         aDate.second = (int)s;
                         aDate.goodTime = true;
                         if (pdTRUE == xSemaphoreTake(dateSemaphore, pdMS_TO_TICKS(10)))
@@ -176,7 +177,7 @@ static int day_of_week(int y, int m, int d)
 BaseType_t gps_setTime()
 {
     BaseType_t returnValue = pdFAIL;
-    gps_date_t theDate = {false};
+    struct gps_date_t theDate = {false};
     if (pdTRUE == xSemaphoreTake(dateSemaphore, pdMS_TO_TICKS(10)))
     {
         theDate = gpsDate;
@@ -194,7 +195,7 @@ BaseType_t gps_setTime()
             };
             rtc_set_datetime(&rtc_time);
 
-            returnValue = pdOK;
+            returnValue = pdPASS;
         }
     }
     return returnValue;

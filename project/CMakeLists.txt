@@ -39,7 +39,15 @@ pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/switch_inputs
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 
-target_link_libraries(${PROJECT_NAME} pico_stdlib FreeRTOS-Kernel FreeRTOS-Kernel-Heap4 hardware_pio libgps
+target_link_libraries(${PROJECT_NAME}
+    libgps
+    FreeRTOS-Kernel FreeRTOS-Kernel-Heap4
+    pico_stdlib
+    hardware_pio
+    hardware_rtc
+    hardware_uart
+    hardware_gpio
+    hardware_i2c
 )
 
 pico_add_extra_outputs(${PROJECT_NAME} 1)

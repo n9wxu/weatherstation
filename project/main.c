@@ -1,12 +1,17 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
+#include "pico/util/datetime.h"
+
 #include "hardware/gpio.h"
 #include "hardware/pio.h"
 #include "hardware/rtc.h"
+#include "hardware/i2c.h"
+
 #include <stdlib.h>
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
 
 #include "rain_task.h"
 #include "wind_task.h"
@@ -19,6 +24,8 @@
 
 const int wind_speed_pin = 27;
 const int rain_bucket_pin = 9;
+const int i2c_sda_pin = 22;
+const int i2c_sck_pin = 21;
 
 const int wind_led = 8;
 const int rain_led = 7;
@@ -31,15 +38,23 @@ PIO pio;
 
 static int8_t pio_irq;
 
+SemaphoreHandle_t i2c_semaphore;
+
 int main()
 {
 	stdio_init_all();
 	rtc_init();
 
+	i2c_init(i2c0, 100 * 1000);
+	gpio_set_function(i2c_sck_pin, GPIO_FUNC_I2C);
+	gpio_set_function(i2c_sda_pin, GPIO_FUNC_I2C);
+	gpio_pull_up(i2c_sck_pin);
+	gpio_pull_up(i2c_sda_pin);
+
 	gpio_init(wind_speed_pin);
 	gpio_init(rain_bucket_pin);
-	gpio_set_pulls(wind_speed_pin, false, false);
-	gpio_set_pulls(rain_bucket_pin, false, false);
+	gpio_pull_up(wind_speed_pin);
+	gpio_pull_up(rain_bucket_pin);
 
 	pio = pio0;
 	wind_sm = pio_claim_unused_sm(pio, false);
@@ -64,6 +79,8 @@ int main()
 	irq_add_shared_handler(pio_irq, rain_irq_func, PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY); // Add a shared IRQ handler
 	irq_set_enabled(pio_irq, true);
 	pio_set_irqn_source_enabled(pio, 1, pis_sm0_rx_fifo_not_empty + rain_sm, true);
+
+	i2c_semaphore = xSemaphoreCreateMutex();
 
 	init_reporting();
 	init_rain();
@@ -121,4 +138,15 @@ void putRPTLED(bool v)
 		initialized = true;
 	}
 	gpio_put(report_led, v);
+}
+
+bool take_i2c()
+{
+	BaseType_t result = xSemaphoreTake(i2c_semaphore, portMAX_DELAY);
+	return result == pdTRUE;
+}
+
+void give_i2c()
+{
+	xSemaphoreGive(i2c_semaphore);
 }
