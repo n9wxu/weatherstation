@@ -1,0 +1,63 @@
+; Thank you - https://github.com/GitJer/Some_RPI-Pico_stuff/tree/main
+;
+; Explanation:
+; - start with the assumption that the gpio is in a steady state. 
+;   If it is currently 1, then go to 'isone'; if it is currently 0, then go to 'iszero'
+; - the branch of 'isone' works as follows:
+;     wait for a change to 0
+;     if that happens, set 31 into the x scratch register
+;         this is the amount of 'time' the debouncer will wait before switching over
+;         the actual amount of time is also dependent on the clock divisor
+;     the program keeps checking if the input changes back to 1, if so, start over at 'isone'
+;     if the input does not change back, complete the loop of counting down from 31
+;     if the x scratch register becomes 0, the signal has definitively switched to 0:
+;         start from 'iszero'
+; - the branch of 'iszero' works similarly, but note that a jmp pin statement always jumps on 1, not 0
+; - if (offset+1 <= pc < offset+isone) the value is 0, if (pc >= offset+isone) the value is 1
+; - The border between 0 and 1 in the code is taken as 'isone' which is made public as 'button_debounce_border'
+; - the each edge is counted by decrementing y.  Each count is pushed out the shift register.
+
+.program input
+    set y 0
+    jmp pin isone   ; executed only once: is the gpio currently 0 or 1?
+iszero:
+    set pins, 0     ; duplicate the filtered signal to an LED
+    jmp y-- nextZero; decrement the Y register for the edge counter
+nextZero:
+    mov isr, ~y     ; send the inverted count to the CPU via the FIFO
+    push            ; 
+    wait 1 pin 0    ; the gpio is 0, wait for it to become 1
+    set x 31        ; prepare to test the gpio for 31 * 2 clock cycles
+checkzero:
+    jmp pin stillone; check if the gpio is still 1
+    jmp iszero      ; if the gpio has returned to 0, start over
+stillone:
+    jmp x-- checkzero; the decrease the time to wait, or decide it has definitively become 1
+isone:
+    set pins, 1     ; duplicate the filtered signal to an LED
+    jmp y-- nextOne ; decrement the y register for the edge counter
+nextOne:
+    mov isr, ~y     ; send the inverted count to the CPU via the FIFO
+    push            ;
+    wait 0 pin 0    ; the gpio is 1, wait for it to become 0
+    set x 31        ; prepare to test the gpio for 31 * 2 clock cycles
+checkone:
+    jmp pin isone   ; if the gpio has returned to 1, start over
+    jmp x-- checkone; decrease the time to wait
+    jmp iszero      ; the gpio has definitively become 0
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO output, and configures the SM to output on a particular pin
+
+void input_program_init(PIO pio, uint sm, uint offset, uint outputPin, uint inputPin) {
+   pio_gpio_init(pio, inputPin);
+   pio_gpio_init(pio, outputPin);
+   pio_sm_set_consecutive_pindirs(pio, sm, outputPin, 1, true);
+   pio_sm_config c = input_program_get_default_config(offset);
+   sm_config_set_clkdiv(&c, 4096.);
+   sm_config_set_set_pins(&c, outputPin, 1);
+   sm_config_set_in_pins(&c, inputPin);
+   sm_config_set_jmp_pin(&c, inputPin);
+   pio_sm_init(pio, sm, offset, &c);
+}
+%}

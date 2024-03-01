@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "queue.h": "c"
+    },
+    "githubPullRequests.ignoredPullRequestBranches": [
+        "master"
+    ]
+}
