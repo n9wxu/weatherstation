@@ -38,7 +38,8 @@ add_executable(${PROJECT_NAME}
     gps_task.c
     reporting_task.c
     temperature_task.c
-    pressure_task.c)
+    pressure_task.c
+    i2c_support.c)
 
 pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/switch_inputs.pio)
 

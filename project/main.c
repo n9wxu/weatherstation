@@ -5,7 +5,6 @@
 #include "hardware/gpio.h"
 #include "hardware/pio.h"
 #include "hardware/rtc.h"
-#include "hardware/i2c.h"
 
 #include <stdlib.h>
 
@@ -22,43 +21,24 @@
 
 #include "switch_inputs.pio.h"
 
-const int wind_speed_pin = 27;
-const int rain_bucket_pin = 9;
-const int i2c_sda_pin = 20;
-const int i2c_sck_pin = 21;
+#include "i2c_support.h"
 
-const int wind_led = 8;
-const int rain_led = 7;
-const int gps_led = 3;
-const int bmp_led = 2;
-const int tmp_led = 1;
-const int report_led = 0;
+#include "pinmap.h"
 
 PIO pio;
 
 static int8_t pio_irq;
 
-SemaphoreHandle_t i2c_semaphore;
-
-#define IC2_SELECTION i2c0
-const int I2C_BAUDRATE = 100 * 1000; // 100khz baudrate
-
 int main()
 {
 	stdio_init_all();
 
-	i2c_init(IC2_SELECTION, I2C_BAUDRATE);
-	gpio_set_function(i2c_sck_pin, GPIO_FUNC_I2C);
-	gpio_set_function(i2c_sda_pin, GPIO_FUNC_I2C);
-	gpio_pull_up(i2c_sck_pin);
-	gpio_pull_up(i2c_sda_pin);
+	i2c_sensorInit();
 
-	gpio_init(wind_speed_pin);
-	gpio_init(rain_bucket_pin);
-	gpio_pull_up(wind_speed_pin);
-	gpio_pull_up(rain_bucket_pin);
-
-	i2c_semaphore = xSemaphoreCreateMutex();
+	gpio_init(WIND_SPEED_PIN);
+	gpio_init(RAIN_BUCKET_PIN);
+	gpio_pull_up(WIND_SPEED_PIN);
+	gpio_pull_up(RAIN_BUCKET_PIN);
 
 	rtc_init();
 	init_reporting();
@@ -75,8 +55,8 @@ int main()
 	pio_sm_set_enabled(pio, wind_sm, false);
 	pio_sm_set_enabled(pio, rain_sm, false);
 	int offset = pio_add_program(pio, &input_program);
-	input_program_init(pio, wind_sm, offset, wind_led, wind_speed_pin);
-	input_program_init(pio, rain_sm, offset, rain_led, rain_bucket_pin);
+	input_program_init(pio, wind_sm, offset, WIND_LED_PIN, WIND_SPEED_PIN);
+	input_program_init(pio, rain_sm, offset, RAIN_LED_PIN, RAIN_BUCKET_PIN);
 	pio_sm_set_enabled(pio, wind_sm, true);
 	pio_sm_set_enabled(pio, rain_sm, true);
 
@@ -100,11 +80,11 @@ void putGPSLED(bool v)
 	static bool initialized = false;
 	if (!initialized)
 	{
-		gpio_init(gps_led);
-		gpio_set_dir(gps_led, true);
+		gpio_init(GPS_LED_PIN);
+		gpio_set_dir(GPS_LED_PIN, true);
 		initialized = true;
 	}
-	gpio_put(gps_led, v);
+	gpio_put(GPS_LED_PIN, v);
 }
 
 void putBMPLED(bool v)
@@ -112,11 +92,11 @@ void putBMPLED(bool v)
 	static bool initialized = false;
 	if (!initialized)
 	{
-		gpio_init(bmp_led);
-		gpio_set_dir(bmp_led, true);
+		gpio_init(BMP_LED_PIN);
+		gpio_set_dir(BMP_LED_PIN, true);
 		initialized = true;
 	}
-	gpio_put(bmp_led, v);
+	gpio_put(BMP_LED_PIN, v);
 }
 
 void putTMPLED(bool v)
@@ -124,11 +104,11 @@ void putTMPLED(bool v)
 	static bool initialized = false;
 	if (!initialized)
 	{
-		gpio_init(tmp_led);
-		gpio_set_dir(tmp_led, true);
+		gpio_init(TMP_LED_PIN);
+		gpio_set_dir(TMP_LED_PIN, true);
 		initialized = true;
 	}
-	gpio_put(tmp_led, v);
+	gpio_put(TMP_LED_PIN, v);
 }
 
 void putRPTLED(bool v)
@@ -136,20 +116,9 @@ void putRPTLED(bool v)
 	static bool initialized = false;
 	if (!initialized)
 	{
-		gpio_init(report_led);
-		gpio_set_dir(report_led, true);
+		gpio_init(REPORT_LED_PIN);
+		gpio_set_dir(REPORT_LED_PIN, true);
 		initialized = true;
 	}
-	gpio_put(report_led, v);
-}
-
-bool take_i2c()
-{
-	BaseType_t result = xSemaphoreTake(i2c_semaphore, portMAX_DELAY);
-	return result == pdTRUE;
-}
-
-void give_i2c()
-{
-	xSemaphoreGive(i2c_semaphore);
+	gpio_put(REPORT_LED_PIN, v);
 }

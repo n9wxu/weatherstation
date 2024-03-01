@@ -4,5 +4,6 @@
     },
     "githubPullRequests.ignoredPullRequestBranches": [
         "master"
-    ]
+    ],
+    "cortex-debug.variableUseNaturalFormat": false
 }
