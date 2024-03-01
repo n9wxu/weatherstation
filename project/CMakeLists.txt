@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
 
-# set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
-
 # import the pico-sdk
 set(ENV{PICO_SDK_FETCH_FROM_GIT} 1)
 include(pico_sdk_import.cmake)
@@ -15,10 +13,15 @@ FetchContent_Declare(libgps
 FetchContent_MakeAvailable(libgps)
 add_subdirectory(${libgps_SOURCE_DIR}/src)
 
-# TODO fix this hard path to the FreeRTOS kernel
-# Ideally make this a fetchcontent
-set(ENV{FREERTOS_KERNEL_PATH} ~/Documents/working/FreeRTOS-kernel)
-include($ENV{FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/FreeRTOS_Kernel_import.cmake)
+FetchContent_Declare(freertos
+    GIT_REPOSITORY https://github.com/freertos/freertos-kernel.git
+    GIT_TAG V11.0.1)
+
+add_library(freertos_config INTERFACE)
+set(FREERTOS_PORT GCC_RP2040)
+FetchContent_Populate(freertos)
+set(FREERTOS_KERNEL_PATH ${freertos_SOURCE_DIR})
+include(${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/FreeRTOS_Kernel_import.cmake)
 
 message(VERSION_REVISION="${PICO_SDK_VERSION_REVISION}")
 
