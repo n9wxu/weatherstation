@@ -4,6 +4,7 @@
 #include "hardware/pio.h"
 
 #include <stdio.h>
+#include "reporting_task.h"
 
 static QueueHandle_t rainQueue;
 unsigned int rain_sm;
@@ -31,7 +32,7 @@ static void rain_task(void *parameter)
         int count;
         if (xQueueReceive(rainQueue, &count, portMAX_DELAY) == pdTRUE)
         {
-            printf("Rain Count : %d\n", count);
+            reportRAINData(count);
         }
     }
 }

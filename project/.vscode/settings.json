@@ -1,9 +1,10 @@
 {
     "files.associations": {
-        "queue.h": "c"
+        "queue.h": "c",
+        "stdlib.h": "c"
     },
     "githubPullRequests.ignoredPullRequestBranches": [
         "master"
     ],
-    "cortex-debug.variableUseNaturalFormat": false
+    "cortex-debug.variableUseNaturalFormat": true
 }

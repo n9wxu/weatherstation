@@ -2,6 +2,7 @@
 #include "task.h"
 #include "i2c_support.h"
 #include <stdio.h>
+#include "reporting_task.h"
 
 #define TMP_ADDRESS 0x48
 
@@ -23,7 +24,7 @@ void temperature_task(void *parameter)
         }
         float temperature = (float)raw_data / 256.0;
 
-        printf("TMP102 : Temperature = %f°C\n", temperature);
+        reportTMPData(temperature);
         vTaskDelay(pdMS_TO_TICKS(60000));
     }
 }

@@ -1,9 +1,11 @@
 #define WIND_SPEED_PIN 27
+#define WIND_DIR_PIN 28
+#define WIND_DIR_ADC 2
 #define RAIN_BUCKET_PIN 9
 #define I2C_SDA_PIN 20
 #define I2C_SCK_PIN 21
 
-#define CLICK_AN_ADC adc0
+#define CLICK_AN_ADC 0
 #define CLICK_AN_PIN 26
 #define CLICK_RST_PIN 22
 #define CLICK_TX_PIN 13

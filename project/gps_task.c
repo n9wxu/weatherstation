@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <memory.h>
 #include <string.h>
+#include "reporting_task.h"
 
 #include "gps.h"
 #include "leds.h"
@@ -138,12 +139,7 @@ static void gps_task(void *parameter)
                 }
                 if (report)
                 {
-                    printf("Time Stamp: %s\n", tpv.time);
-                    print_tpv_value("Latitude", "%.6f\n", tpv.latitude, GPS_LAT_LON_FACTOR);
-                    print_tpv_value("Longitude", "%.6f\n", tpv.longitude, GPS_LAT_LON_FACTOR);
-                    print_tpv_value("Altitude", "%.3f\n", tpv.altitude, GPS_VALUE_FACTOR);
-                    print_tpv_value("Track", "%.3f\n", tpv.track, GPS_VALUE_FACTOR);
-                    print_tpv_value("Speed", "%.3f\n", tpv.speed, GPS_VALUE_FACTOR);
+                    reportGPSData(tpv.latitude, tpv.longitude, tpv.altitude);
                 }
             }
         }

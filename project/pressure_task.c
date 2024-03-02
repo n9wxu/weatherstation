@@ -3,8 +3,10 @@
 
 #include "i2c_support.h"
 #include <math.h>
-
+#include "leds.h"
 #include <stdio.h>
+
+#include "reporting_task.h"
 
 /** monitor the temperature and pressure from a BMP388 every minute or so */
 
@@ -146,34 +148,28 @@ static void pressure_task(void *parameter)
     {
 
         uint8_t r;
-        r = i2c_readRegisterSensors(BMP_ADDRESS, CHIP_ID);
-        if (r == 0x50)
+
+        putBMPLED(true);
+        // Start a Power and Temperature Forced cycle
+        i2c_writeRegisterSensors(BMP_ADDRESS, PWR_CTRL, 0b00010011);
+
+        // poll to determine if the data is ready.
+        // wait for conversion to finish
+        do
         {
-            printf("Found BMP388 at address 0x%x\n", BMP_ADDRESS);
+            vTaskDelay(pdMS_TO_TICKS(2)); // poll slowly as the measurement takes a few ms and we are not in a hurry.
+            r = i2c_readRegisterSensors(BMP_ADDRESS, INT_STATUS);
+        } while ((r & 0x08) != 0x08);
 
-            // Start a Power and Temperature Forced cycle
-            i2c_writeRegisterSensors(BMP_ADDRESS, PWR_CTRL, 0b00010011);
+        // read out the data in a burst
+        uint8_t data[6];
+        i2c_readRegisterBlockSensors(BMP_ADDRESS, DATA_0, data, sizeof(data));
+        uint32_t pressure = data[2] << 16 | data[1] << 8 | data[0];
+        uint32_t temperature = data[5] << 16 | data[4] << 8 | data[3];
 
-            // poll to determine if the data is ready.
-            // wait for conversion to finish
-            do
-            {
-                vTaskDelay(pdMS_TO_TICKS(2)); // poll slowly as the measurement takes a few ms and we are not in a hurry.
-                r = i2c_readRegisterSensors(BMP_ADDRESS, INT_STATUS);
-            } while ((r & 0x08) != 0x08);
+        reportBMPData(temperature_compensation(temperature), pressure_compensation(pressure));
 
-            // read out the data in a burst
-            uint8_t data[6];
-            i2c_readRegisterBlockSensors(BMP_ADDRESS, DATA_0, data, sizeof(data));
-            uint32_t pressure = data[2] << 16 | data[1] << 8 | data[0];
-            uint32_t temperature = data[5] << 16 | data[4] << 8 | data[3];
-
-            printf("BMP388 - Temperature %fC : Pressure %fPa\n", temperature_compensation(temperature), pressure_compensation(pressure));
-        }
-        else
-        {
-            printf("No BMP388 found\n");
-        }
+        putBMPLED(false);
 
         vTaskDelay(pdMS_TO_TICKS(60000));
     }
