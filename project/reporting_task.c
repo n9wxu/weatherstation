@@ -49,6 +49,7 @@ void reporting_task(void *parameter)
         unsigned int now = xTaskGetTickCount() / portTICK_RATE_MS;
         // format and send the data copy
         putRPTLED(true);
+        // make sure we are connected.
         expresslinkConnect();
         char buffer[400];
         snprintf(buffer, sizeof(buffer),
@@ -77,7 +78,8 @@ void reporting_task(void *parameter)
                  dataCopy.rain_in_hr, dataCopy.rain_in_day, now);
 
         expresslinkPublish(2, buffer, sizeof(buffer));
-        expresslinkDisconnect();
+        // disconnecting and reconnecting costs 10KB of data.
+        //        expresslinkDisconnect();
         putRPTLED(false);
     }
 }
