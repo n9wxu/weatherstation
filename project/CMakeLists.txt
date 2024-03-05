@@ -31,6 +31,8 @@ set(CMAKE_CXX_STANDARD 17)
 
 pico_sdk_init()
 
+add_definitions(-DPICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=5000)
+
 add_executable(${PROJECT_NAME}
     main.c
     rain_task.c
@@ -39,7 +41,8 @@ add_executable(${PROJECT_NAME}
     reporting_task.c
     temperature_task.c
     pressure_task.c
-    i2c_support.c)
+    i2c_support.c
+    expresslink.c)
 
 pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/switch_inputs.pio)
 

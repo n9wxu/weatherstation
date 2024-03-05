@@ -27,11 +27,42 @@ void rain_irq_func(void)
 
 static void rain_task(void *parameter)
 {
+    uint32_t hour_start_ticks = 0;
+    uint32_t hour_start_tips = 0;
+    uint32_t day_start_tips = 0;
+    float rainInchesLastHour = 0.0;
+    float rainInchesLastDay = 0.0;
+    int hours = 0;
     for (;;)
     {
-        int count;
-        if (xQueueReceive(rainQueue, &count, portMAX_DELAY) == pdTRUE)
+        unsigned int count;
+        if (xQueueReceive(rainQueue, &count, pdMS_TO_TICKS(1000)) == pdTRUE)
         {
+            unsigned int now_s = (xTaskGetTickCount() / portTICK_RATE_MS) / 1000;
+            if (now_s - hour_start_ticks > 60000)
+            {
+                hour_start_ticks += 60000; // add an hour
+                if (++hours > 23)
+                {
+                    hours = 0;
+                    int tipsLastDay = count - day_start_tips;
+                    if (tipsLastDay < day_start_tips)
+                    {
+                        tipsLastDay += UINT32_MAX;
+                    }
+                    rainInchesLastDay = tipsLastDay * 0.011;
+                }
+
+                int tipsLastHour = count - hour_start_tips;
+                if (tipsLastHour < hour_start_tips)
+                {
+                    tipsLastHour += UINT32_MAX;
+                }
+                hour_start_tips = count;
+
+                rainInchesLastHour = tipsLastHour * 0.011;
+                reportRainScaledData(rainInchesLastHour, rainInchesLastDay);
+            }
             reportRAINData(count);
         }
     }
