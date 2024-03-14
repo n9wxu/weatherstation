@@ -68,6 +68,12 @@ int measureDirection()
         }
     }
 
+    // go ahead and measure the battery voltage here so I don't have to share the ADC with another task.
+    float volts = 0;
+    adc_select_input(VSYS_ADC);
+    volts = (adc_read() * 3.0 * 3.3) / 4096.0;
+    reportBatteryVoltage(volts);
+
     return direction_map[closest_index].degrees;
 }
 
@@ -85,6 +91,8 @@ struct wind_data
 // Rain over the past hour (store 1 per minute)
 // Total rain over date (store one per day)
 
+#define WIND_DATA_UPDATE (1000U)
+
 static void wind_task(void *parameter)
 {
     bool transmitRawData = false;
@@ -98,38 +106,39 @@ static void wind_task(void *parameter)
     int logIndex = 0;
     int seconds = 0;
     int minutes = 0;
-    struct wind_data windavg_2m[120];  // two minutes of data for every second
-    struct wind_data windgust_10m[10]; // last 10 minutes of wind gusts
-    struct wind_data windgust;         // daily gust data
+    struct wind_data windavg_2m[120] = {{0.0, 0}};  // two minutes of data for every second
+    struct wind_data windgust_10m[10] = {{0.0, 0}}; // last 10 minutes of wind gusts
+    struct wind_data windgust;                      // daily gust data
     struct wind_data windavg2m;
     struct wind_data gust_10m;
 
     for (;;)
     {
-        xQueueReceive(windQueue, &count, pdMS_TO_TICKS(250));      // wait up to 250ms for counts data
+        xQueueReceive(windQueue, &count, pdMS_TO_TICKS(10));       // wait up to 250ms for counts data
         unsigned int now = xTaskGetTickCount() / portTICK_RATE_MS; // get the up-time in ms
         int currentDirection = measureDirection();                 // collect the current wind direction
 
-        if (now - lastUpdate > 1000) // update the processed data every second.
+        if (now - lastUpdate > WIND_DATA_UPDATE)
         {
-            lastUpdate += 1000;
+            lastUpdate += WIND_DATA_UPDATE;
 
             if (++seconds_2m > 119)
                 seconds_2m = 0;
 
-            float deltaTime = (float)(lastWindCheck - now) / 1000.0;
+            float deltaTime = (float)(now - lastWindCheck);
             lastWindCheck = now;
+            deltaTime /= 1000.0;
 
             /* care care of the count rollover since the PIO code is a monotonic count */
             uint32_t deltaCounts = count - lastCounts;
-            if (deltaCounts < lastCounts)
+            if (deltaCounts > lastCounts)
                 deltaCounts += UINT_MAX;
             /* scale into actual MPH wind speed */
             float currentSpeed = 1.492 * ((float)deltaCounts) / deltaTime;
             lastCounts = count;
 
-            windavg_2m[seconds].speed = currentSpeed;
-            windavg_2m[seconds].direction = currentDirection;
+            windavg_2m[seconds_2m].speed = currentSpeed;
+            windavg_2m[seconds_2m].direction = currentDirection;
 
             if (currentSpeed > windgust_10m[minutes_10m].speed)
             {
@@ -221,6 +230,7 @@ void init_wind()
     assert(windQueue);
     adc_init();
     adc_gpio_init(WIND_DIR_PIN);
+    adc_gpio_init(VSYS_PIN);
 
     xTaskCreate(wind_task, "Wind", 1000, NULL, WIND_PRIORITY, NULL);
 }

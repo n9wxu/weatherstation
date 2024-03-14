@@ -159,7 +159,7 @@ void expresslinkConnect()
 static void expresslinkPowerOn()
 {
     // There is a pull down transistor inverting this signal on the click
-    printf("ExpressLink Applying SARA POWER:");
+    printf("ExpressLink Initializing Power and Reset:");
     printf("PWR:");
     gpio_put(EL_SARA_PWR_PIN, true);
     vTaskDelay(pdMS_TO_TICKS(500));
@@ -169,6 +169,7 @@ static void expresslinkPowerOn()
     gpio_put(EL_RESET_PIN, true);
     vTaskDelay(pdMS_TO_TICKS(10));
     gpio_put(EL_RESET_PIN, false);
+    gpio_set_dir(EL_RESET_PIN, false);
     vTaskDelay(pdMS_TO_TICKS(50));
     printf("EVT:");
     while (gpio_get(EL_EVENT_PIN) == 0)
@@ -178,9 +179,9 @@ static void expresslinkPowerOn()
     printf("Done\n");
 }
 
-static void expresslinkGetThingName(char *thingName, size_t thingNameLen)
+void expresslinkGetThingName(char *thingName, size_t thingNameLen)
 {
-    char buffer[20];
+    char buffer[50];
     if (EL_OK == expresslinkSendCommand("AT+CONF? ThingName", buffer, sizeof(buffer)))
     {
         strncpy(thingName, &buffer[3], thingNameLen);
@@ -207,7 +208,7 @@ void expresslinkDisconnect()
 
 void expresslinkInit()
 {
-    char thingName[20];
+    char thingName[50];
     char topicBuffer[75];
     uart_init(EL_UART, EL_BAUD);
     gpio_set_function(CLICK_TX_PIN, GPIO_FUNC_UART);
@@ -219,7 +220,7 @@ void expresslinkInit()
     // reset is inverted on the EL click 2
     gpio_init(EL_RESET_PIN);
     gpio_set_dir(EL_RESET_PIN, true);
-    gpio_put(EL_RESET_PIN, false);
+    gpio_put(EL_RESET_PIN, true);
 
     gpio_init(EL_SARA_PWR_PIN);
     gpio_set_dir(EL_SARA_PWR_PIN, true);
@@ -257,5 +258,10 @@ void expresslinkInit()
     if (EL_OK != expresslinkSendCommand(topicBuffer, NULL, 0))
     {
         printf("Topic 2 set failure");
+    }
+    snprintf(topicBuffer, sizeof(topicBuffer), "AT+CONF Topic3=scaled_weather_data/all");
+    if (EL_OK != expresslinkSendCommand(topicBuffer, NULL, 0))
+    {
+        printf("Topic 3 set failure");
     }
 }

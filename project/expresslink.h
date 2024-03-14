@@ -37,5 +37,6 @@ void expresslinkConnect();
 void expresslinkDisconnect();
 void expresslinkInit();
 void expresslinkPublish(int topic, char *message, size_t messageLength);
+void expresslinkGetThingName(char *thingName, size_t thingNameLen);
 
 #endif //_EXPRESSLINK_

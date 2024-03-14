@@ -25,3 +25,5 @@
 #define BMP_LED_PIN 2
 #define TMP_LED_PIN 1
 #define REPORT_LED_PIN 0
+#define VSYS_PIN 29
+#define VSYS_ADC 3

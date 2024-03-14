@@ -30,6 +30,8 @@ struct data_report_s
 
     float rain_in_hr;
     float rain_in_day;
+
+    float volts;
 };
 
 static struct data_report_s theData;
@@ -38,7 +40,10 @@ SemaphoreHandle_t dataMutex;
 
 void reporting_task(void *parameter)
 {
+    char thingName[50];
     expresslinkInit();
+
+    expresslinkGetThingName(thingName, sizeof(thingName));
 
     for (;;)
     {
@@ -53,11 +58,14 @@ void reporting_task(void *parameter)
         expresslinkConnect();
         char buffer[400];
         snprintf(buffer, sizeof(buffer),
-                 "{\"BMP\":{\"temperature\":%3.2f,\"pressure\":%3.2f},"
-                 "\"TMP\":{\"temperature\":%3.2f},"
-                 "\"GPS\":{\"latitude\":%3.5f,\"longitude\":%3.5f, \"altitude\":%.1f},"
+                 "{\"ID\":\"%s\","
+                 "\"VOLTS\":%.2g,"
+                 "\"BMP\":{\"temperature\":%.2g,\"pressure\":%.2g},"
+                 "\"TMP\":{\"temperature\":%.2g},"
+                 "\"GPS\":{\"latitude\":%.gf,\"longitude\":%.5g, \"altitude\":%.1g},"
                  "\"WIND\":{\"counts\":%u,\"direction\":%d},"
-                 "\"RAIN\":{\"counts\":%u},\"time ms\":%u}",
+                 "\"RAIN\":{\"counts\":%u},\"time_ms\":%u}",
+                 thingName, dataCopy.volts,
                  dataCopy.bmp_temperature, dataCopy.bmp_pressure,
                  dataCopy.tmp_temperature,
                  dataCopy.latitude, dataCopy.longtitude, dataCopy.altitude,
@@ -66,11 +74,14 @@ void reporting_task(void *parameter)
         expresslinkPublish(1, buffer, sizeof(buffer));
 
         snprintf(buffer, sizeof(buffer),
-                 "{\"BMP\":{\"temperature\":%3.2f,\"pressure\":%3.2f},"
-                 "\"TMP\":{\"temperature\":%3.2f},"
-                 "\"GPS\":{\"latitude\":%3.5f,\"longitude\":%3.5f, \"altitude\":%.1f},"
-                 "\"WIND\":{\"avg speed 2min\":%3.2f,\"avg direction 2m\":%d,\"gust speed 10min\":%3.2f,\"guest direction 10min\":%d},"
-                 "\"RAIN\":{\"inches last hour\":%3.2f,\"inches last day\":%3.2f},\"time ms\":%u}",
+                 "{\"ID\":\"%s\","
+                 "\"VOLTS\":%.2g,"
+                 "\"BMP\":{\"temperature\":%.2g,\"pressure\":%.2g},"
+                 "\"TMP\":{\"temperature\":%.2g},"
+                 "\"GPS\":{\"latitude\":%.5g,\"longitude\":%0.5g, \"altitude\":%.1g},"
+                 "\"WIND\":{\"avg_speed_2min\":%.2g,\"avg_direction_2m\":%d,\"gust_speed_10min\":%.2g,\"gust_direction_10min\":%d},"
+                 "\"RAIN\":{\"inches_last_hour\":%.2g,\"inches_last_day\":%.2g},\"time_ms\":%u}",
+                 thingName, dataCopy.volts,
                  dataCopy.bmp_temperature, dataCopy.bmp_pressure,
                  dataCopy.tmp_temperature,
                  dataCopy.latitude, dataCopy.longtitude, dataCopy.altitude,
@@ -78,6 +89,7 @@ void reporting_task(void *parameter)
                  dataCopy.rain_in_hr, dataCopy.rain_in_day, now);
 
         expresslinkPublish(2, buffer, sizeof(buffer));
+        expresslinkPublish(3, buffer, sizeof(buffer));
         // disconnecting and reconnecting costs 10KB of data.
         //        expresslinkDisconnect();
         putRPTLED(false);
@@ -140,5 +152,12 @@ void reportWINDScaledData(float avgSpeed_2m, int avgDirection_2m, float gustSpee
     theData.windDirection_2m = avgDirection_2m;
     theData.gustSpeed_10m = gustSpeed_10m;
     theData.gustDirection_10m = gustDirection_10m;
+    xSemaphoreGive(dataMutex);
+}
+
+void reportBatteryVoltage(float volts)
+{
+    xSemaphoreTake(dataMutex, portMAX_DELAY);
+    theData.volts = volts;
     xSemaphoreGive(dataMutex);
 }

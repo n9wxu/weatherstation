@@ -38,6 +38,7 @@ static void rain_task(void *parameter)
         unsigned int count;
         if (xQueueReceive(rainQueue, &count, pdMS_TO_TICKS(1000)) == pdTRUE)
         {
+            count /= 2; // divide by 2 because the PIO counts both edges so every bucket tip is counted twice.
             unsigned int now_s = (xTaskGetTickCount() / portTICK_RATE_MS) / 1000;
             if (now_s - hour_start_ticks > 60000)
             {
