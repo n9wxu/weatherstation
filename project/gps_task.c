@@ -95,7 +95,7 @@ static void gps_task(void *parameter)
     for (;;)
     {
         nmea_buffer_t nmea_message = {0};
-        if (xQueueReceive(gpsQueue, &nmea_message, portMAX_DELAY) == pdTRUE)
+        if (xQueueReceive(gpsQueue, &nmea_message, pdMS_TO_TICKS(2000)) == pdTRUE)
         {
             bool report = false;
             strncat(nmea_message, "\r\n", 3);
@@ -106,10 +106,10 @@ static void gps_task(void *parameter)
                 {
                 case GPS_MODE_3D_FIX:
                     putGPSLED(true);
-                    puts("3D FIX");
                     report = true;
                     if (strlen(tpv.time) > 0)
                     {
+                        printf("GPS Time: %s\n", tpv.time);
                         float s;
                         struct gps_date_t aDate;
                         sscanf(tpv.time, "%d-%d-%dT%d:%d:%fZ", &aDate.year,
@@ -120,12 +120,12 @@ static void gps_task(void *parameter)
                         {
                             gpsDate = aDate;
                             xSemaphoreGive(dateSemaphore);
+                            /* add some code to set the RTC from the GPS every so often */
                         }
                     }
                     break;
                 case GPS_MODE_2D_FIX:
                     putGPSLED(true);
-                    puts("2D FIX");
                     report = true;
                     break;
                 case GPS_MODE_NO_FIX:
@@ -142,6 +142,10 @@ static void gps_task(void *parameter)
                     reportGPSData(tpv.latitude, tpv.longitude, tpv.altitude);
                 }
             }
+        }
+        else
+        {
+            puts("No GPS data for 2 seconds.");
         }
     }
 }
@@ -173,25 +177,29 @@ static int day_of_week(int y, int m, int d)
 BaseType_t gps_setTime()
 {
     BaseType_t returnValue = pdFAIL;
-    struct gps_date_t theDate = {false};
-    if (pdTRUE == xSemaphoreTake(dateSemaphore, pdMS_TO_TICKS(10)))
-    {
-        theDate = gpsDate;
-        xSemaphoreGive(dateSemaphore);
-        if (theDate.goodTime)
-        {
-            datetime_t rtc_time = {
-                .year = theDate.year,
-                .month = theDate.month,
-                .day = theDate.day,
-                .dotw = day_of_week(theDate.year, theDate.month, theDate.day),
-                .hour = theDate.hour,
-                .min = theDate.minute,
-                .sec = theDate.second,
-            };
-            rtc_set_datetime(&rtc_time);
+    datetime_t rtc_time;
 
-            returnValue = pdPASS;
+    if (rtc_get_datetime(&rtc_time) == false)
+    {
+        struct gps_date_t theDate = {false};
+        if (pdTRUE == xSemaphoreTake(dateSemaphore, pdMS_TO_TICKS(10)))
+        {
+            theDate = gpsDate;
+            xSemaphoreGive(dateSemaphore);
+            if (theDate.goodTime)
+            {
+                rtc_time.year = theDate.year;
+                rtc_time.month = theDate.month;
+                rtc_time.day = theDate.day;
+                rtc_time.dotw = day_of_week(theDate.year, theDate.month, theDate.day);
+                rtc_time.hour = theDate.hour;
+                rtc_time.min = theDate.minute;
+                rtc_time.sec = theDate.second;
+                rtc_init();
+                rtc_set_datetime(&rtc_time);
+
+                returnValue = pdPASS;
+            }
         }
     }
     return returnValue;

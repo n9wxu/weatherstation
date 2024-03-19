@@ -20,10 +20,23 @@
 #define EL_RESET_PIN CLICK_RST_PIN
 #define EL_SARA_PWR_PIN CLICK_AN_PIN
 
+static void el_waitForEvent();
+
 /* HW specific UART functions. */
+void el_reset()
+{
+    puts("resetting Expresslink");
+    gpio_put(EL_RESET_PIN, true);
+    gpio_set_dir(EL_RESET_PIN, true);
+    vTaskDelay(pdMS_TO_TICKS(10));
+    gpio_put(EL_RESET_PIN, false);
+    vTaskDelay(pdMS_TO_TICKS(50));
+    gpio_set_dir(EL_RESET_PIN, false);
+}
 
 void el_flush()
 {
+    puts("el_flush: flushing");
     while (uart_is_readable_within_us(EL_UART, 2000000)) // wait 2 seconds for any characters
     {
         uart_getc(EL_UART);
@@ -53,33 +66,33 @@ int el_read(char *const buffer, size_t bufferLen)
     bool receivingLine = true;
     char *dst = buffer;
 
-    while (receivingLine)
+    if (uart_is_readable_within_us(EL_UART, 30000000UL))
     {
-        char c = uart_getc(EL_UART);
-        if (c == '\r' || c == '\n')
+        while (receivingLine)
         {
-            if (i != 0)
+            char c = uart_getc(EL_UART);
+            if (c == '\r' || c == '\n')
             {
-                receivingLine = false;
+                if (i != 0)
+                {
+                    receivingLine = false;
+                }
+            }
+            else
+            {
+                if (i < (bufferLen - 1))
+                {
+                    *dst++ = c;
+                    *dst = 0;
+                    i++;
+                }
             }
         }
-        else
-        {
-            if (i < (bufferLen - 1))
-            {
-                *dst++ = c;
-                *dst = 0;
-                i++;
-            }
-        }
-    }
-    if (i)
-    {
         printf("el_read: %.*s\n", bufferLen, buffer);
     }
     else
     {
-        printf("el_read: no response\n");
+        puts("el_read: no response in 30 seconds");
     }
     return i;
 }
@@ -127,14 +140,25 @@ void expresslinkConnect()
 {
     char responseBuffer[50];
     bool finished = false;
+    int retryCount = 0;
 
-    expresslinkSendCommand("AT+CONNECT?", responseBuffer, sizeof(responseBuffer));
+    while (expresslinkSendCommand("AT+CONNECT?", responseBuffer, sizeof(responseBuffer)) == EL_NORESPONSE)
+    {
+        el_reset();
+        el_waitForEvent();
+    }
+
     if (strnstr(responseBuffer, "OK 1", 4) == NULL)
     {
+        puts("reconnecting");
         expresslinkSendCommand("AT+EVENT?", NULL, 0);
         printf("Connecting ExpressLink:");
         do
         {
+            if ((++retryCount) > 4)
+            {
+                el_reset();
+            }
             if (expresslinkSendCommand("AT+CONNECT", responseBuffer, sizeof(responseBuffer)) == EL_OK)
             {
                 if (strnstr(responseBuffer, "OK 1", 4) != NULL)
@@ -149,34 +173,35 @@ void expresslinkConnect()
             else
             {
                 printf("EL Connection Error : %s\n", responseBuffer);
+                puts("Reset expresslink");
+                el_reset();
+                el_waitForEvent();
             }
             vTaskDelay(pdMS_TO_TICKS(1000));
         } while (!finished);
         puts("Expresslink Connected");
     }
+    else
+    {
+        puts("still connected");
+    }
 }
 
-static void expresslinkPowerOn()
+static void el_waitForEvent()
 {
-    // There is a pull down transistor inverting this signal on the click
-    printf("ExpressLink Initializing Power and Reset:");
-    printf("PWR:");
-    gpio_put(EL_SARA_PWR_PIN, true);
-    vTaskDelay(pdMS_TO_TICKS(500));
-    gpio_put(EL_SARA_PWR_PIN, false);
-    vTaskDelay(pdMS_TO_TICKS(100));
-    printf("RST:");
-    gpio_put(EL_RESET_PIN, true);
-    vTaskDelay(pdMS_TO_TICKS(10));
-    gpio_put(EL_RESET_PIN, false);
-    gpio_set_dir(EL_RESET_PIN, false);
-    vTaskDelay(pdMS_TO_TICKS(50));
-    printf("EVT:");
     while (gpio_get(EL_EVENT_PIN) == 0)
     {
         vTaskDelay(pdMS_TO_TICKS(1));
     }
-    printf("Done\n");
+}
+
+static void el_power()
+{
+    printf("ExpressLink Initializing Power:");
+    gpio_put(EL_SARA_PWR_PIN, true);
+    vTaskDelay(pdMS_TO_TICKS(500));
+    gpio_put(EL_SARA_PWR_PIN, false);
+    vTaskDelay(pdMS_TO_TICKS(100));
 }
 
 void expresslinkGetThingName(char *thingName, size_t thingNameLen)
@@ -217,10 +242,7 @@ void expresslinkInit()
     uart_set_format(EL_UART, EL_DATA_BITS, EL_STOP_BITS, EL_PARITY);
     uart_set_fifo_enabled(EL_UART, true);
 
-    // reset is inverted on the EL click 2
     gpio_init(EL_RESET_PIN);
-    gpio_set_dir(EL_RESET_PIN, true);
-    gpio_put(EL_RESET_PIN, true);
 
     gpio_init(EL_SARA_PWR_PIN);
     gpio_set_dir(EL_SARA_PWR_PIN, true);
@@ -239,7 +261,9 @@ void expresslinkInit()
 
     vTaskDelay(pdMS_TO_TICKS(500));
 
-    expresslinkPowerOn();
+    el_power();
+    el_reset();
+    el_waitForEvent();
     el_flush();
 
     vTaskDelay(200);

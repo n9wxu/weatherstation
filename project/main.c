@@ -40,7 +40,6 @@ int main()
 	gpio_pull_up(WIND_SPEED_PIN);
 	gpio_pull_up(RAIN_BUCKET_PIN);
 
-	rtc_init();
 	init_reporting();
 	init_rain();
 	init_wind();
