@@ -1,7 +1,8 @@
 {
     "files.associations": {
         "queue.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "algorithm": "c"
     },
     "githubPullRequests.ignoredPullRequestBranches": [
         "master"

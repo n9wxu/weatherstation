@@ -20,6 +20,32 @@
                 "break main",
                 "continue"
             ]
+        },
+        {
+            "name": "BMP attach",
+            "cwd": "${workspaceRoot}",
+            "gdbPath": "arm-none-eabi-gdb",
+            "executable": "${command:cmake.launchTargetPath}",
+            "request": "attach", // "launch" also works perhaps
+            "type": "cortex-debug",
+            "servertype": "bmp",
+            "interface": "swd",
+            "device": "RP2040",
+            "BMPGDBSerialPort": "/dev/cu.usbmodem307NTHM896412", // Use whatever serial port makes sense for your OS and BMP setup
+        },
+        {
+            "name": "BMP Debug",
+            "cwd": "${workspaceRoot}",
+            "gdbPath": "arm-none-eabi-gdb",
+            "executable": "${command:cmake.launchTargetPath}",
+            "request": "launch",
+            // "preLaunchTask": "Build STM",
+            "type": "cortex-debug",
+            "servertype": "bmp",
+            "interface": "swd",
+            "device": "RP2040",
+            "BMPGDBSerialPort": "/dev/cu.usbmodem307NTHM896412", // Use whatever serial port makes sense for your OS and BMP setup
+            "runToEntryPoint": "main"
         }
     ]
 }

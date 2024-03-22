@@ -92,9 +92,10 @@ void reporting_task(void *parameter)
 
     expresslinkGetThingName(thingName, sizeof(thingName));
 
+    TickType_t previousWakeTime = xTaskGetTickCount();
     for (;;)
     {
-        vTaskDelay(pdMS_TO_TICKS(60000));
+        vTaskDelayUntil(&previousWakeTime, pdMS_TO_TICKS(60000));
         struct data_report_s dataCopy;
         puts("collecting rain data");
         xSemaphoreTake(rainData.dataMutex, pdMS_TO_TICKS(1));
@@ -175,7 +176,7 @@ void reporting_task(void *parameter)
 
         expresslinkPublish(2, buffer, sizeof(buffer));
         expresslinkPublish(3, buffer, sizeof(buffer));
-        // disconnecting and reconnecting costs 10KB of data.
+        // disconnecting and reconnecting costs 10KB of data which is expensive on a Cellular connection
         //        expresslinkDisconnect();
         putRPTLED(false);
     }
