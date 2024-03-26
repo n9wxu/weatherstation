@@ -50,7 +50,6 @@ uint32_t convertPin(int pin)
 {
     assert(pin >= 26 && pin <= 29);
     int adc_channel = pin - 26;
-    printf("starting ADC read of pin %d and adc %d\n", pin, adc_channel);
     adc_init();
     adc_gpio_init(pin);
     adc_select_input(adc_channel);
@@ -67,10 +66,8 @@ uint32_t convertPin(int pin)
     {
         uint16_t r = adc_read();
         counts += r;
-        printf("[%d]=%6d:%6d\n", x, r, counts);
     }
     counts /= 16;
-    printf("adc result %d\n", counts);
     return counts;
 }
 
@@ -108,7 +105,6 @@ void measureBattery()
     if (volts > 5.0)
         volts = 5.0; // one of the test boards has a bad ADC that always reads full scale.
     reportBatteryVoltage(volts);
-    printf("Supply Voltage %d : %.2fV\n", counts, volts);
 }
 
 // We need to keep track of the following variables:

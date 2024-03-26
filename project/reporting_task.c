@@ -141,7 +141,10 @@ void reporting_task(void *parameter)
         // format and send the data copy
         putRPTLED(true);
         // make sure we are connected.
-        expresslinkConnect();
+        if (!expresslinkIsConnected())
+        {
+            expresslinkConnect();
+        }
         char buffer[400];
         snprintf(buffer, sizeof(buffer),
                  "{\"ID\":\"%s\","

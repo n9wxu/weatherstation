@@ -38,28 +38,29 @@ static void rain_task(void *parameter)
         unsigned int count;
         if (xQueueReceive(rainQueue, &count, pdMS_TO_TICKS(1000)) == pdTRUE)
         {
-            count /= 2; // divide by 2 because the PIO counts both edges so every bucket tip is counted twice.
             unsigned int now_s = (xTaskGetTickCount() / portTICK_RATE_MS) / 1000;
             if (now_s - hour_start_ticks > 60000)
             {
+                unsigned int pCount = count / 2;
                 hour_start_ticks += 60000; // add an hour
                 if (++hours > 23)
                 {
                     hours = 0;
-                    int tipsLastDay = count - day_start_tips;
+                    int tipsLastDay = pCount - day_start_tips;
                     if (tipsLastDay < day_start_tips)
                     {
                         tipsLastDay += UINT32_MAX;
                     }
+                    day_start_tips = pCount;
                     rainInchesLastDay = tipsLastDay * 0.011;
                 }
 
-                int tipsLastHour = count - hour_start_tips;
+                int tipsLastHour = pCount - hour_start_tips;
                 if (tipsLastHour < hour_start_tips)
                 {
                     tipsLastHour += UINT32_MAX;
                 }
-                hour_start_tips = count;
+                hour_start_tips = pCount;
 
                 rainInchesLastHour = tipsLastHour * 0.011;
                 reportRainScaledData(rainInchesLastHour, rainInchesLastDay);

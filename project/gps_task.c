@@ -99,6 +99,7 @@ static void gps_task(void *parameter)
         {
             bool report = false;
             strncat(nmea_message, "\r\n", 3);
+            gps_init_tpv(&tpv);
             int gps_error = gps_decode(&tpv, nmea_message);
             if (GPS_OK == gps_error)
             {
@@ -109,7 +110,6 @@ static void gps_task(void *parameter)
                     report = true;
                     if (strlen(tpv.time) > 0)
                     {
-                        printf("GPS Time: %s\n", tpv.time);
                         float s;
                         struct gps_date_t aDate;
                         sscanf(tpv.time, "%d-%d-%dT%d:%d:%fZ", &aDate.year,
@@ -121,6 +121,7 @@ static void gps_task(void *parameter)
                             gpsDate = aDate;
                             xSemaphoreGive(dateSemaphore);
                             /* add some code to set the RTC from the GPS every so often */
+                            printf("GPS Time: %s\n", tpv.time);
                         }
                     }
                     break;

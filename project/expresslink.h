@@ -33,6 +33,7 @@ typedef enum response_codes
 } response_codes_t;
 
 response_codes_t expresslinkSendCommand(const char *command, char *response, size_t responseLength);
+bool expresslinkIsConnected();
 void expresslinkConnect();
 void expresslinkDisconnect();
 void expresslinkInit();
