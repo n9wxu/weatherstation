@@ -95,7 +95,7 @@ static char el_rx_buffer[EL_RX_BUFFER_SIZE];
 
 static TaskHandle_t readTask;
 static void el_on_uart_rx()
-{ 
+{
     BaseType_t higherPriorityTaskWoken = pdFALSE;
     static int buffer_position = 0;
 
@@ -145,8 +145,9 @@ static int el_read(char *const buffer, size_t bufferLen)
 
     if (pdTRUE == xTaskNotifyWaitIndexed(0, 0x00, -1, &i, pdMS_TO_TICKS(EL_COMMAND_TIMEOUT)))
     {
-        memcpy(buffer, el_rx_buffer, i);
-        printf("el_read: %.*s\n", bufferLen, buffer);
+        printf("EL Read notification with %d\n", i);
+        memcpy(buffer, el_rx_buffer, i + 1);
+        printf("el_read: %s\n", buffer);
     }
     else
     {
