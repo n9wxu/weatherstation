@@ -99,7 +99,6 @@ static void gps_task(void *parameter)
         {
             bool report = false;
             strncat(nmea_message, "\r\n", 3);
-            gps_init_tpv(&tpv);
             int gps_error = gps_decode(&tpv, nmea_message);
             if (GPS_OK == gps_error)
             {
@@ -140,7 +139,16 @@ static void gps_task(void *parameter)
                 }
                 if (report)
                 {
-                    reportGPSData(tpv.latitude, tpv.longitude, tpv.altitude);
+                    if (tpv.latitude != GPS_INVALID_VALUE)
+                    {
+                        float lat = (float)tpv.latitude;
+                        float lng = (float)tpv.longitude;
+                        float alt = (float)tpv.altitude;
+                        lat /= (float)GPS_LAT_LON_FACTOR;
+                        lng /= (float)GPS_LAT_LON_FACTOR;
+                        alt /= (float)GPS_VALUE_FACTOR;
+                        reportGPSData(lat, lng, alt);
+                    }
                 }
             }
         }
