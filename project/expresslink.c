@@ -95,7 +95,7 @@ static char el_rx_buffer[EL_RX_BUFFER_SIZE];
 
 static TaskHandle_t readTask;
 static void el_on_uart_rx()
-{
+{ 
     BaseType_t higherPriorityTaskWoken = pdFALSE;
     static int buffer_position = 0;
 
@@ -107,6 +107,7 @@ static void el_on_uart_rx()
         case '\r': // discard this character
             break;
         case '\n': // Task notification
+            el_rx_buffer[buffer_position] = 0;
             xTaskNotifyFromISR(readTask, buffer_position, eSetValueWithOverwrite, &higherPriorityTaskWoken);
             uart_set_irq_enables(EL_UART, false, false); // turn off interrupts
             buffer_position = 0;
