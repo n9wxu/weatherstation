@@ -9,7 +9,7 @@
 #include "leds.h"
 #include "expresslink.h"
 
-#define REPORTING_PRIORITY 5
+#define REPORTING_PRIORITY 9
 
 struct volts_report_s
 {
@@ -193,7 +193,7 @@ void init_reporting(void)
     windData.dataMutex = xSemaphoreCreateMutex();
     rainData.dataMutex = xSemaphoreCreateMutex();
     voltsData.dataMutex = xSemaphoreCreateMutex();
-    xTaskCreate(reporting_task, "reporting", 8196, NULL, REPORTING_PRIORITY, NULL);
+    xTaskCreate(reporting_task, "reporting", 10240, NULL, REPORTING_PRIORITY, NULL);
 }
 
 void reportBMPData(float temperature, float pressure)

@@ -17,29 +17,33 @@
 
 #define EL_WAKE_PIN CLICK_PWM_PIN
 #define EL_EVENT_PIN CLICK_INT_PIN
-#define EL_RESET_PIN CLICK_RST_PIN
-#define EL_SARA_PWR_PIN CLICK_AN_PIN
+
+#define EL_RST_PIN CLICK_RST_PIN     // used by NORA & SARA & C6-Mini for Chip Reset (C6 uses chip reset for el reset)
+#define EL_RSN_PIN CLICK_AN_PIN      // used by NORA for EL reset
+#define EL_SARA_PWR_PIN CLICK_AN_PIN // used by SARA for EL Power
+
+#define EL_RX_BUFFER_SIZE 10240 // 10KB receive buffer to cover the biggest message
 
 static void el_waitForEvent()
 {
-    printf("EL: Waiting for Event:");
+    puts("EL: Waiting for Event");
     while (gpio_get(EL_EVENT_PIN) == 0)
     {
         putchar('.');
         vTaskDelay(pdMS_TO_TICKS(1));
     }
-    printf(":found\n");
+    puts("EL: Event found");
 }
 
 static void el_waitForAT()
 {
-    printf("EL: Waiting for AT:");
+    puts("EL: Waiting for AT");
     while (EL_OK != expresslinkSendCommand("AT", NULL, 0))
     {
         putchar('.');
         vTaskDelay(pdMS_TO_TICKS(1));
     }
-    printf(":found\n");
+    puts("EL: AT found\n");
 }
 
 static void el_power()
@@ -55,12 +59,16 @@ static void el_power()
 static void el_reset()
 {
     puts("EL: resetting");
-    gpio_put(EL_RESET_PIN, true);
-    gpio_set_dir(EL_RESET_PIN, true);
+
+    gpio_set_dir(EL_RSN_PIN, true);
+    gpio_put(EL_RSN_PIN, true);
+
+    gpio_put(EL_RST_PIN, true);
+    gpio_set_dir(EL_RST_PIN, true);
     vTaskDelay(pdMS_TO_TICKS(10));
-    gpio_put(EL_RESET_PIN, false);
+    gpio_put(EL_RST_PIN, false);
     vTaskDelay(pdMS_TO_TICKS(50));
-    gpio_set_dir(EL_RESET_PIN, false);
+    gpio_put(EL_RST_PIN, true);
 }
 
 static void el_flush()
@@ -83,6 +91,39 @@ static void el_write(const char *string)
     uart_putc_raw(EL_UART, '\n');
 }
 
+static char el_rx_buffer[EL_RX_BUFFER_SIZE];
+
+static TaskHandle_t readTask;
+static void el_on_uart_rx()
+{
+    BaseType_t higherPriorityTaskWoken = pdFALSE;
+    static int buffer_position = 0;
+
+    while (uart_is_readable(EL_UART))
+    {
+        char ch = uart_getc(EL_UART);
+        switch (ch)
+        {
+        case '\r': // discard this character
+            break;
+        case '\n': // Task notification
+            xTaskNotifyFromISR(readTask, buffer_position, eSetValueWithOverwrite, &higherPriorityTaskWoken);
+            uart_set_irq_enables(EL_UART, false, false); // turn off interrupts
+            buffer_position = 0;
+            break;
+        default:
+            el_rx_buffer[buffer_position] = ch;
+            buffer_position++;
+            if (buffer_position > sizeof(el_rx_buffer) - 1) // truncate if a line is too long
+            {
+                buffer_position = sizeof(el_rx_buffer) - 1;
+            }
+            break;
+        }
+    }
+    portYIELD_FROM_ISR(higherPriorityTaskWoken);
+}
+
 #define EL_COMMAND_TIMEOUT (30 * 1000)
 // read one line of data filling the buffer
 // ensure.  ignore leading '\r's and '\n's.
@@ -92,44 +133,24 @@ static void el_write(const char *string)
 // will hold and then continue receiving until the end of the line
 static int el_read(char *const buffer, size_t bufferLen)
 {
-    int i = 0;
+    uint32_t i = 0;
     bool receivingLine = true;
     char *dst = buffer;
 
+    memset(el_rx_buffer, 0, sizeof(el_rx_buffer));
+    readTask = xTaskGetCurrentTaskHandle();
+    uart_set_irq_enables(EL_UART, true, false);
     TickType_t startTime = xTaskGetTickCount();
 
-    while (receivingLine)
+    if (pdTRUE == xTaskNotifyWaitIndexed(0, 0x00, -1, &i, pdMS_TO_TICKS(EL_COMMAND_TIMEOUT)))
     {
-        if ((xTaskGetTickCount() - startTime) > pdMS_TO_TICKS(EL_COMMAND_TIMEOUT))
-        {
-            puts("el_read timeout");
-            break;
-        }
-        if (uart_is_readable(EL_UART))
-        {
-            char c = uart_getc(EL_UART);
-            if (c == '\r' || c == '\n')
-            {
-                if (i != 0)
-                {
-                    receivingLine = false;
-                }
-            }
-            else
-            {
-                if (i < (bufferLen - 1))
-                {
-                    *dst++ = c;
-                    *dst = 0;
-                    i++;
-                }
-            }
-        }
-        // give up the CPU for a bit while characters can arrive
-        // the shortest response in the fastest time is 300uSec so 1ms is plenty of time.
-        vTaskDelay(pdMS_TO_TICKS(1));
+        memcpy(buffer, el_rx_buffer, i);
+        printf("el_read: %.*s\n", bufferLen, buffer);
     }
-    printf("el_read: %.*s\n", bufferLen, buffer);
+    else
+    {
+        puts("el_read timeout");
+    }
     return i;
 }
 
@@ -154,7 +175,7 @@ static response_codes_t el_checkResponse(const char *response)
 // Send a command and retrieve the response
 response_codes_t expresslinkSendCommand(const char *command, char *response, size_t responseLength)
 {
-    char buffer[500];
+    char buffer[200];
     el_write(command);
     int l = el_read(buffer, sizeof(buffer));
     if (l)
@@ -296,8 +317,12 @@ void expresslinkInit()
     uart_set_hw_flow(EL_UART, false, false);
     uart_set_format(EL_UART, EL_DATA_BITS, EL_STOP_BITS, EL_PARITY);
     uart_set_fifo_enabled(EL_UART, true);
+    uart_set_irq_enables(EL_UART, false, false);
+    const int UART_IRQ = EL_UART == uart0 ? UART0_IRQ : UART1_IRQ;
+    irq_set_exclusive_handler(UART_IRQ, el_on_uart_rx);
+    irq_set_enabled(UART_IRQ, true);
 
-    gpio_init(EL_RESET_PIN);
+    gpio_init(EL_RST_PIN);
     gpio_init(EL_SARA_PWR_PIN);
     gpio_init(EL_WAKE_PIN);
     gpio_set_dir(EL_WAKE_PIN, true);
