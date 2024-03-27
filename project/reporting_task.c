@@ -148,10 +148,10 @@ void reporting_task(void *parameter)
         char buffer[400];
         snprintf(buffer, sizeof(buffer),
                  "{\"ID\":\"%s\","
-                 "\"VOLTS\":%.2g,"
-                 "\"BMP\":{\"temperature\":%.2g,\"pressure\":%.2g},"
-                 "\"TMP\":{\"temperature\":%.2g},"
-                 "\"GPS\":{\"latitude\":%.g,\"longitude\":%.5g, \"altitude\":%.1g},"
+                 "\"VOLTS\":%.2f,"
+                 "\"BMP\":{\"temperature\":%.2f,\"pressure\":%.2f},"
+                 "\"TMP\":{\"temperature\":%.2f},"
+                 "\"GPS\":{\"latitude\":%5.5f,\"longitude\":%5.5f, \"altitude\":%5.1f},"
                  "\"WIND\":{\"counts\":%u,\"direction\":%d},"
                  "\"RAIN\":{\"counts\":%u},\"time_ms\":%u}",
                  thingName, dataCopy.volts,
@@ -164,12 +164,12 @@ void reporting_task(void *parameter)
 
         snprintf(buffer, sizeof(buffer),
                  "{\"ID\":\"%s\","
-                 "\"VOLTS\":%.2g,"
-                 "\"BMP\":{\"temperature\":%.2g,\"pressure\":%.2g},"
-                 "\"TMP\":{\"temperature\":%.2g},"
-                 "\"GPS\":{\"latitude\":%.5g,\"longitude\":%0.5g, \"altitude\":%.1g},"
-                 "\"WIND\":{\"avg_speed_2min\":%.2g,\"avg_direction_2m\":%d,\"gust_speed_10min\":%.2g,\"gust_direction_10min\":%d},"
-                 "\"RAIN\":{\"inches_last_hour\":%.2g,\"inches_last_day\":%.2g},\"time_ms\":%u}",
+                 "\"VOLTS\":%.2f,"
+                 "\"BMP\":{\"temperature\":%.2f,\"pressure\":%.2f},"
+                 "\"TMP\":{\"temperature\":%.2f},"
+                 "\"GPS\":{\"latitude\":%.5f,\"longitude\":%.5f, \"altitude\":%.1f},"
+                 "\"WIND\":{\"avg_speed_2min\":%.2f,\"avg_direction_2m\":%d,\"gust_speed_10min\":%.2f,\"gust_direction_10min\":%d},"
+                 "\"RAIN\":{\"inches_last_hour\":%.2f,\"inches_last_day\":%.2f},\"time_ms\":%u}",
                  thingName, dataCopy.volts,
                  dataCopy.bmp_temperature, dataCopy.bmp_pressure,
                  dataCopy.tmp_temperature,
